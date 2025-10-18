@@ -5,13 +5,14 @@ import re
 from pypdf import PdfReader
 
 # Configuração da página
-st.set_page_config(page_title="Carbon Due Diligence AI", page_icon="🌳")
+st.set_page_config(page_title="Carbon Due Diligence AI", page_icon="🌳", layout="wide")
 
-# Título do seu site
+# Título profissional
 st.title("🌳 Carbon Due Diligence AI")
-st.markdown("**Analise PDDs de créditos de carbono em 60 segundos**")
+st.markdown("**Análise Automatizada de Adicionalidade em PDDs de Carbono**")
+st.markdown("---")
 
-# Sidebar para a chave da API
+# Sidebar amigável para clientes
 with st.sidebar:
     st.header("🔑 Configuração Rápida")
     st.markdown("""
@@ -40,7 +41,7 @@ with st.sidebar:
     st.markdown("---")
     st.success("**⚡ Análise em 3 segundos**")
 
-# Função para extrair PDF
+# Funções de análise
 def extrair_texto_pdf(pdf_file):
     try:
         leitor = PdfReader(pdf_file)
@@ -51,22 +52,20 @@ def extrair_texto_pdf(pdf_file):
                 texto_total += texto + "\n"
         return texto_total if texto_total else None
     except Exception as e:
-        st.error(f"Erro ao ler PDF: {str(e)}")
         return None
 
 def encontrar_secao_adicionalidade(texto):
     padroes = [
-        r'additionalit[y|ie][\s\S]{1,1500}(?=\n\s*\n|\n[A-Z]|$)',
-        r'adicionalidade[\s\S]{1,1500}(?=\n\s*\n|\n[A-Z]|$)',
+        r'additionalit[y|ie][\s\S]{1,2000}(?=\n\s*\n|\n[A-Z]|$)',
+        r'4\.\s*[1-9]?\d?\s*[\.]?\s*Additionalit[y|ie][\s\S]{1,2000}',
     ]
     for padrao in padroes:
         match = re.search(padrao, texto, re.IGNORECASE | re.MULTILINE)
         if match:
             return match.group().strip()
-    return texto[:4000]
+    return texto[:5000]
 
-# ⭐⭐ FUNÇÃO COM GROQ API (GRATUITA) ⭐⭐
-def analisar_adicionalidade_groq(api_key, texto):
+def analisar_com_groq(api_key, texto):
     url = "https://api.groq.com/openai/v1/chat/completions"
     
     headers = {
@@ -75,87 +74,94 @@ def analisar_adicionalidade_groq(api_key, texto):
     }
     
     prompt = f"""
-    Analise esta seção de ADICIONALIDADE de um projeto de carbono e responda em PORTUGUÊS:
+    Como especialista senior em créditos de carbono, analise a SECÇÃO DE ADICIONALIDADE abaixo.
 
-    TEXTO: {texto[:3000]}
+    TEXTO PARA ANÁLISE:
+    {texto[:3500]}
 
-    FORMATO DA RESPOSTA:
-    **Score:** X/10
-    **Pontos Fortes:** 
-    - ...
-    **Pontos Fracos:**
-    - ...
-    **Recomendação:** [APROVAR/ANALISAR MAIS/REJEITAR]
+    FORMATO DE RESPOSTA (em português):
+    **Score de Risco:** [X]/10
+    **Análise Técnica:**
+    - **Pontos Fortes:** [lista]
+    - **Pontos de Atenção:** [lista] 
+    - **Riscos Identificados:** [lista]
+    **Recomendação Final:** [🟢 APROVAR / 🟡 ANALISAR MAIS / 🔴 REJEITAR]
+
+    Seja direto e técnico.
     """
     
     data = {
         "messages": [{"role": "user", "content": prompt}],
-        "model": "llama3-8b-8192",
-        "temperature": 0.1
+        "model": "llama-3.1-8b-instant",  # ⭐⭐ MODELO ATUALIZADO ⭐⭐
+        "temperature": 0.1,
+        "max_tokens": 1000
     }
     
     try:
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=30)
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         else:
-            return f"Erro na API: {response.text}"
+            return f"❌ Erro na API Groq: {response.status_code} - {response.text}"
     except Exception as e:
-        return f"Erro: {str(e)}"
+        return f"❌ Erro de conexão: {str(e)}"
 
-# Área principal do site
-st.subheader("📤 Faça upload do PDD (PDF)")
+# Interface principal
+col1, col2 = st.columns([1, 1])
 
-uploaded_file = st.file_uploader("Escolha o arquivo PDF do projeto", type="pdf")
-
-if uploaded_file is not None and api_key:
+with col1:
+    st.subheader("📤 Upload do PDD")
+    uploaded_file = st.file_uploader("**Faça upload do PDF do projeto**", type="pdf")
     
-    with st.spinner("🔍 Analisando o documento..."):
+    if uploaded_file:
+        st.success(f"✅ Arquivo carregado: {uploaded_file.name}")
         
-        texto_completo = extrair_texto_pdf(uploaded_file)
-        
-        if texto_completo:
-            secao_adicionalidade = encontrar_secao_adicionalidade(texto_completo)
-            
-            if len(secao_adicionalidade) > 100:
+        with st.expander("📋 Pré-visualização do texto extraído"):
+            texto_completo = extrair_texto_pdf(uploaded_file)
+            if texto_completo:
+                secao = encontrar_secao_adicionalidade(texto_completo)
+                st.text_area("Texto da seção de adicionalidade:", secao[:2000] + "..." if len(secao) > 2000 else secao, height=200)
+
+with col2:
+    st.subheader("📊 Resultado da Análise")
+    
+    if uploaded_file and api_key:
+        if st.button("🚀 Executar Análise Completa", type="primary"):
+            with st.spinner("🔍 Analisando adicionalidade, riscos e viabilidade..."):
+                texto_completo = extrair_texto_pdf(uploaded_file)
                 
-                # ⭐⭐ CHAMA A GROQ API ⭐⭐
-                resultado = analisar_adicionalidade_groq(api_key, secao_adicionalidade)
-                
-                st.success("✅ Análise concluída!")
-                st.subheader("📊 Resultado:")
-                st.markdown(resultado)
-                
-                # Mostra um resumo visual do score
-                if "**Score:**" in resultado:
-                    try:
-                        score_texto = resultado.split("**Score:**")[1].split("/")[0].strip()
-                        score = int(score_texto)
-                        if score <= 3:
+                if texto_completo:
+                    secao_adicionalidade = encontrar_secao_adicionalidade(texto_completo)
+                    
+                    if len(secao_adicionalidade) > 200:
+                        resultado = analisar_com_groq(api_key, secao_adicionalidade)
+                        
+                        # Exibe o resultado formatado
+                        st.markdown("### 📋 Relatório de Due Diligence")
+                        st.markdown(resultado)
+                        
+                        # Feedback visual
+                        if "🟢 APROVAR" in resultado:
                             st.balloons()
-                            st.success("🎉 Projeto de Baixo Risco!")
-                        elif score <= 7:
-                            st.warning("⚠️ Projeto de Risco Moderado")
+                            st.success("🎉 **PROJETO RECOMENDADO** - Baixo risco identificado")
+                        elif "🔴 REJEITAR" in resultado:
+                            st.error("🚨 **ALTO RISCO** - Recomendação de rejeição")
                         else:
-                            st.error("🚨 Projeto de Alto Risco")
-                    except:
-                        pass
-            else:
-                st.error("Seção de adicionalidade não encontrada.")
-        else:
-            st.error("Não foi possível ler o PDF.")
-
-elif uploaded_file and not api_key:
-    st.warning("⚠️ Cole sua Groq API Key na sidebar")
-
-else:
-    st.markdown("""
-    ### 🤔 Como usar:
-    1. **Obtenha uma API Key GRATUITA** da [Groq](https://console.groq.com/keys)
-    2. **Cole a API Key** na sidebar
-    3. **Faça upload do PDD** em PDF
-    4. **Receba a análise em segundos**
+                            st.warning("⚠️ **RISCO MODERADO** - Análise adicional necessária")
+                            
+                    else:
+                        st.error("❌ Seção de adicionalidade não encontrada no documento")
+                else:
+                    st.error("❌ Não foi possível extrair texto del PDF")
     
-    *100% GRATUITO - sem limites para teste!*
+    elif uploaded_file and not api_key:
+        st.warning("⚠️ **Cole sua Groq API Key na sidebar para executar a análise**")
 
-    """)
+# Rodapé profissional
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center'>
+    <p><strong>Carbon Due Diligence AI</strong> - Ferramenta de análise automatizada para investidores e desenvolvedores de projetos de carbono</p>
+    <p>⚡ Análises em tempo real | 🎯 Foco em adicionalidade | 📊 Score de risco quantificado</p>
+</div>
+""", unsafe_allow_html=True)
