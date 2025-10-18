@@ -13,11 +13,32 @@ st.markdown("**Analise PDDs de créditos de carbono em 60 segundos**")
 
 # Sidebar para a chave da API
 with st.sidebar:
-    st.header("🔑 Configuração")
-    api_key = st.text_input("Cole sua Groq API Key:", type="password")
-    st.markdown("[Obtenha sua chave GRATUITA aqui](https://console.groq.com/keys)")
+    st.header("🔑 Configuração Rápida")
+    st.markdown("""
+    ### 🆓 Teste Gratuitamente:
+    1. **Acesse** [Groq Console](https://console.groq.com)
+    2. **Clique** em 'Sign Up' (crie sua conta)
+    3. **Vá em** 'API Keys' → 'Create API Key'
+    4. **Cole** a chave abaixo
+    5. **Teste** quantas análises quiser!
+    
+    *💡 100% gratuito - sem cartão de crédito*
+    """)
+    
+    api_key = st.text_input("**Cole sua Groq API Key:**", type="password", placeholder="sk-...")
+    
     st.markdown("---")
-    st.info("Use Groq API - é gratuita e rápida!")
+    
+    st.markdown("### 📊 O Que Esta Ferramenta Faz:")
+    st.markdown("""
+    - ✅ **Analisa adicionalidade** em PDDs
+    - ✅ **Identifica riscos** em projetos de carbono  
+    - ✅ **Dá score** de 1-10 para qualidade
+    - ✅ **Recomenda** aprovar ou rejeitar
+    """)
+    
+    st.markdown("---")
+    st.success("**⚡ Análise em 3 segundos**")
 
 # Função para extrair PDF
 def extrair_texto_pdf(pdf_file):
@@ -136,4 +157,5 @@ else:
     4. **Receba a análise em segundos**
     
     *100% GRATUITO - sem limites para teste!*
+
     """)
